@@ -13,7 +13,7 @@
 | Q3 | Browser packaging | **One repo**, dual MV3 build (Chrome/Chromium + Firefox) |
 | Q4 | Not separate browser repos | Confirmed |
 | Q5 | Host v1 | **Gmail web only** |
-| Q6 | Mobile Gmail app | **Out of scope** (manual `r+` or future add-on repo) |
+| Q6 | Mobile Gmail app | **Out of scope here** — sibling product **`cfeg-reply-addon`** (Workspace Add-on) |
 | Q7 | Server secrets in extension | **None** v1 |
 | Q8 | Activation | Usable hop: `X-CFEG-Reply-To` / `X-Reply-To` / `X-CFEG-Reply-To-Addr` |
 | Q9 | Missing headers | **Fail open** (native Gmail) |

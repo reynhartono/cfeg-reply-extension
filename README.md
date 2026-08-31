@@ -37,8 +37,8 @@ Popup: enable/debug toggles. On Gmail: floating **CFEG Reply** / **Reply-All** b
 
 ## Non-goals
 
-- Mobile Gmail app / iOS / Android
-- Google Workspace Add-on
+- Mobile Gmail app / iOS / Android (**see sibling** `cfeg-reply-addon`)
+- Google Workspace Add-on (sibling product, not this repo)
 - Rewriting inbound MIME or DKIM
 - Server-side secrets inside the extension
 - Outlook.com / other webmail (architecture allows later hosts)
@@ -72,3 +72,4 @@ See [docs/07-repo-structure.md](docs/07-repo-structure.md).
 | Product | Role |
 |---------|------|
 | **cf-email-gateway** | Worker, tokens, headers, reply hop |
+| **cfeg-reply-addon** | Gmail Workspace Add-on (web + mobile card hop apply) |

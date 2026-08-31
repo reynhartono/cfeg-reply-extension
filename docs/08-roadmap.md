@@ -42,7 +42,7 @@
 | Idea | Where |
 |------|--------|
 | Outlook.com host | Same repo, new `hosts/outlook` |
-| Google Workspace Add-on (mobile-ish) | **New repo** |
+| Google Workspace Add-on (Gmail mobile + web card) | **`cfeg-reply-addon`** (separate product; Phase 0 docs) |
 | Native mobile apps | Not planned |
 
 ## Dependency on gateway
