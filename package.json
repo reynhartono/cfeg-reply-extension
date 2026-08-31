@@ -1,0 +1,22 @@
+{
+  "name": "cfeg-reply-extension",
+  "version": "0.4.0",
+  "private": false,
+  "description": "CFEG Reply \u2014 Gmail Reply/Reply-All \u2192 X-CFEG-Reply-To tokens",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/**/*.test.js",
+    "check": "node --check src/shared/headers.js && node --check src/shared/compose-intent.js && node --check src/shared/settings.js && node --check src/background/service-worker.js && node --check src/hosts/gmail/content.js && node --check src/hosts/gmail/headers-source.js && node --check src/hosts/gmail/gmail-ids.js && node --check src/hosts/gmail/compose.js && node --check src/popup/popup.js && node --check scripts/build.mjs",
+    "build": "node scripts/build.mjs",
+    "build:chrome": "node scripts/build.mjs chrome",
+    "build:firefox": "node scripts/build.mjs firefox",
+    "build:all": "node scripts/build.mjs all",
+    "pack": "node scripts/build.mjs all && node scripts/pack.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

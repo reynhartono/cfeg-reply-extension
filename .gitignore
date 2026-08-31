@@ -1,0 +1,38 @@
+# Dependencies / build
+node_modules/
+dist/
+build/
+*.zip
+*.xpi
+.web-extension-id
+web-ext-artifacts/
+release/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+*.code-workspace
+
+# Env / local secrets (extension should need none for v1)
+.env
+.env.*
+!.env.example
+
+# Author-local notes
+docs/*.local.md
+*.local.yaml
+*.local.json
+
+# Logs / coverage
+npm-debug.log*
+yarn-error.log*
+coverage/
+.nyc_output/
+
+# Test fixtures with real mail (never commit)
+fixtures/real/
+**/*.eml
+!**/*.eml.example

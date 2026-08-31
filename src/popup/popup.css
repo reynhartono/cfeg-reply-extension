@@ -1,0 +1,38 @@
+body {
+  font: 13px/1.4 system-ui, sans-serif;
+  margin: 0;
+  min-width: 220px;
+  color: #e8eaed;
+  background: #1a1d23;
+}
+
+main {
+  padding: 12px 14px 14px;
+}
+
+h1 {
+  font-size: 15px;
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+
+.tag {
+  margin: 0 0 12px;
+  color: #9aa0a6;
+  font-size: 11px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  cursor: pointer;
+}
+
+.status {
+  margin: 12px 0 0;
+  font-size: 11px;
+  color: #8ab4f8;
+  min-height: 1.2em;
+}
