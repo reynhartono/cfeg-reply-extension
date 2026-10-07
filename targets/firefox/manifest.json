@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "CFEG Reply",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Route Gmail Reply/Reply-All through cf-email-gateway X-CFEG-Reply-To tokens.",
   "browser_specific_settings": {
     "gecko": {

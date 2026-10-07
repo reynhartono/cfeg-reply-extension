@@ -1,6 +1,6 @@
 {
   "name": "cfeg-reply-extension",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": false,
   "description": "CFEG Reply \u2014 Gmail Reply/Reply-All \u2192 X-CFEG-Reply-To tokens",
   "type": "module",

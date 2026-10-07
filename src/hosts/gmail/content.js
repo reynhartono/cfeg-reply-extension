@@ -55,6 +55,27 @@ function setBadge(state) {
   document.documentElement.dataset.cfegReplyPhase = PHASE;
 }
 
+/** Bottom-right chrome: clear of Gmail's bottom-left undo/snackbar lane. */
+const UI = Object.freeze({
+  edge: 24,
+  gap: 12,
+  zBar: 999998,
+  zToast: 999999,
+  collapseMs: 8000,
+});
+
+/** @type {boolean} */
+let toolbarExpanded = false;
+/** @type {ReturnType<typeof setTimeout> | null} */
+let toolbarCollapseTimer = null;
+
+/** Toast sits above the toolbar so actions stay clickable. */
+function toastBottomPx() {
+  const bar = document.getElementById("cfeg-reply-toolbar");
+  const h = bar?.getBoundingClientRect().height || (toolbarExpanded ? 44 : 40);
+  return UI.edge + h + UI.gap;
+}
+
 /**
  * @param {string} text
  * @param {'ok'|'err'|'info'} [level]
@@ -68,7 +89,7 @@ function showToast(text, level = "info") {
   }
   const bg =
     level === "ok" ? "#0d652d" : level === "err" ? "#8f1d14" : "#1a376a";
-  el.style.cssText = `position:fixed;z-index:999999;bottom:24px;right:24px;background:${bg};color:#fff;padding:10px 14px;border-radius:8px;font:13px system-ui,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.3);max-width:420px;opacity:1`;
+  el.style.cssText = `position:fixed;z-index:${UI.zToast};bottom:${toastBottomPx()}px;right:${UI.edge}px;background:${bg};color:#fff;padding:10px 14px;border-radius:8px;font:13px system-ui,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.3);max-width:min(90vw,420px);opacity:1`;
   el.textContent = text;
   clearTimeout(el._cfegT);
   el._cfegT = setTimeout(() => {
@@ -292,45 +313,98 @@ async function attemptRewrite(opts = {}) {
   }
 }
 
+function scheduleToolbarCollapse() {
+  if (toolbarCollapseTimer) clearTimeout(toolbarCollapseTimer);
+  toolbarCollapseTimer = setTimeout(() => {
+    toolbarExpanded = false;
+    syncToolbar();
+  }, UI.collapseMs);
+}
+
+function setToolbarExpanded(next) {
+  toolbarExpanded = next;
+  if (toolbarCollapseTimer) {
+    clearTimeout(toolbarCollapseTimer);
+    toolbarCollapseTimer = null;
+  }
+  if (next) scheduleToolbarCollapse();
+  syncToolbar();
+}
+
+/**
+ * Compact FAB bottom-right (avoids Gmail undo). Expand for actions.
+ * Diagnose only when popup debug is on.
+ */
 function ensureToolbar() {
-  if (document.getElementById("cfeg-reply-toolbar")) return;
+  if (document.getElementById("cfeg-reply-toolbar")) {
+    syncToolbar();
+    return;
+  }
+
   const bar = document.createElement("div");
   bar.id = "cfeg-reply-toolbar";
-  bar.style.cssText =
-    "position:fixed;z-index:999998;bottom:24px;left:24px;display:flex;gap:6px;font:12px system-ui,sans-serif;flex-wrap:wrap;max-width:90vw";
+  bar.setAttribute("role", "toolbar");
+  bar.setAttribute("aria-label", "CFEG Reply");
 
-  const style =
-    "background:#1a376a;color:#fff;border:0;border-radius:6px;padding:8px 10px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25)";
-  const styleMuted =
-    "background:#3c4043;color:#fff;border:0;border-radius:6px;padding:8px 10px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25)";
+  const btnStyle =
+    "background:#1a376a;color:#fff;border:0;border-radius:6px;padding:8px 10px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25);font:12px system-ui,sans-serif";
+  const btnMuted =
+    "background:#3c4043;color:#fff;border:0;border-radius:6px;padding:8px 10px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25);font:12px system-ui,sans-serif";
+
+  const btnToggle = document.createElement("button");
+  btnToggle.type = "button";
+  btnToggle.id = "cfeg-reply-toggle";
+  btnToggle.textContent = "CFEG";
+  btnToggle.title = "CFEG Reply actions";
+  btnToggle.setAttribute("aria-expanded", "false");
+  btnToggle.style.cssText = btnStyle;
+  btnToggle.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    setToolbarExpanded(!toolbarExpanded);
+  });
+
+  const actions = document.createElement("div");
+  actions.id = "cfeg-reply-actions";
+  actions.style.cssText = "display:none;gap:6px;flex-wrap:wrap;align-items:center";
 
   const btnReply = document.createElement("button");
   btnReply.type = "button";
-  btnReply.textContent = "CFEG Reply";
-  btnReply.style.cssText = style;
-  btnReply.addEventListener("click", async () => {
+  btnReply.id = "cfeg-reply-btn-reply";
+  btnReply.textContent = "Reply";
+  btnReply.style.cssText = btnStyle;
+  btnReply.addEventListener("click", async (ev) => {
+    ev.stopPropagation();
+    scheduleToolbarCollapse();
     if (!settings.enabled) return showToast("CFEG disabled in popup", "err");
     sessionClaimed = false;
     armPending("reply");
     await attemptRewrite({ force: true, kind: "reply" });
+    setToolbarExpanded(false);
   });
 
   const btnAll = document.createElement("button");
   btnAll.type = "button";
-  btnAll.textContent = "CFEG Reply-All";
-  btnAll.style.cssText = style;
-  btnAll.addEventListener("click", async () => {
+  btnAll.id = "cfeg-reply-btn-all";
+  btnAll.textContent = "Reply-All";
+  btnAll.style.cssText = btnStyle;
+  btnAll.addEventListener("click", async (ev) => {
+    ev.stopPropagation();
+    scheduleToolbarCollapse();
     if (!settings.enabled) return showToast("CFEG disabled in popup", "err");
     sessionClaimed = false;
     armPending("reply_all");
     await attemptRewrite({ force: true, kind: "reply_all" });
+    setToolbarExpanded(false);
   });
 
   const btnDiag = document.createElement("button");
   btnDiag.type = "button";
-  btnDiag.textContent = "CFEG Diagnose";
-  btnDiag.style.cssText = styleMuted;
-  btnDiag.addEventListener("click", async () => {
+  btnDiag.id = "cfeg-reply-btn-diag";
+  btnDiag.textContent = "Diagnose";
+  btnDiag.style.cssText = btnMuted;
+  btnDiag.addEventListener("click", async (ev) => {
+    ev.stopPropagation();
+    scheduleToolbarCollapse();
     clearContextCache();
     const permmsgid = findVisibleMessagePermId(document);
     const r = await fetchContextForOpenMessageDetailed({
@@ -346,10 +420,85 @@ function ensureToolbar() {
       showToast(`CFEG: ${r.error}`, "err");
       console.warn(LOG, "diagnose", r);
     }
+    setToolbarExpanded(false);
   });
 
-  bar.append(btnReply, btnAll, btnDiag);
+  actions.append(btnReply, btnAll, btnDiag);
+  bar.append(btnToggle, actions);
   document.body.appendChild(bar);
+
+  // Outside click collapses expanded actions
+  document.addEventListener(
+    "click",
+    (ev) => {
+      if (!toolbarExpanded) return;
+      const t = ev.target;
+      if (t instanceof Node && bar.contains(t)) return;
+      setToolbarExpanded(false);
+    },
+    true,
+  );
+
+  syncToolbar();
+}
+
+function syncToolbar() {
+  const bar = document.getElementById("cfeg-reply-toolbar");
+  if (!bar) return;
+
+  bar.style.cssText = `position:fixed;z-index:${UI.zBar};bottom:${UI.edge}px;right:${UI.edge}px;left:auto;display:flex;gap:6px;align-items:center;font:12px system-ui,sans-serif;flex-wrap:wrap;max-width:min(90vw,420px);opacity:${settings.enabled ? "1" : "0.55"}`;
+
+  const toggle = document.getElementById("cfeg-reply-toggle");
+  const actions = document.getElementById("cfeg-reply-actions");
+  const diag = document.getElementById("cfeg-reply-btn-diag");
+  if (!(toggle instanceof HTMLButtonElement) || !(actions instanceof HTMLElement)) {
+    return;
+  }
+
+  toggle.setAttribute("aria-expanded", toolbarExpanded ? "true" : "false");
+  toggle.title = toolbarExpanded
+    ? "Collapse CFEG actions"
+    : "Expand CFEG Reply actions";
+
+  if (toolbarExpanded) {
+    actions.style.display = "flex";
+    toggle.textContent = "CFEG ▾";
+  } else {
+    actions.style.display = "none";
+    toggle.textContent = "CFEG";
+  }
+
+  if (diag) {
+    diag.style.display = settings.debug ? "" : "none";
+    diag.hidden = !settings.debug;
+  }
+
+  // Keep an open toast stacked above the live toolbar height
+  const toast = document.getElementById("cfeg-reply-toast");
+  if (toast && toast.style.opacity !== "0") {
+    toast.style.bottom = `${toastBottomPx()}px`;
+    toast.style.right = `${UI.edge}px`;
+  }
+}
+
+function bindSettingsListener() {
+  const api = globalThis.browser?.storage ?? globalThis.chrome?.storage;
+  if (!api?.onChanged) return;
+  api.onChanged.addListener((changes, area) => {
+    if (area && area !== "local") return;
+    let touched = false;
+    if (changes.enabled) {
+      settings.enabled = Boolean(changes.enabled.newValue);
+      touched = true;
+    }
+    if (changes.debug) {
+      settings.debug = Boolean(changes.debug.newValue);
+      touched = true;
+    }
+    if (!touched) return;
+    setBadge(settings.enabled ? "ready" : "disabled");
+    syncToolbar();
+  });
 }
 
 function onClickCapture(ev) {
@@ -378,6 +527,7 @@ async function init() {
   settings = await getSettings().catch(() => ({ ...DEFAULTS }));
   setBadge(settings.enabled ? "ready" : "disabled");
   ensureToolbar();
+  bindSettingsListener();
 
   document.addEventListener("click", onClickCapture, true);
   document.addEventListener("keydown", onKeydown, true);
@@ -395,8 +545,9 @@ async function init() {
     }
   }, 2000);
 
-  console.info(LOG, "loaded phase", PHASE, "v0.2.2-event-driven", {
+  console.info(LOG, "loaded phase", PHASE, "toolbar-br-compact", {
     enabled: settings.enabled,
+    debug: settings.debug,
   });
 }
 
