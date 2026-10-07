@@ -33,7 +33,7 @@ npm run build:all
 | Chrome / Edge / Brave | `dist/chrome` |
 | Firefox | `dist/firefox` (temporary add-on) |
 
-Popup: enable/debug toggles. On Gmail: compact **CFEG** FAB (bottom-right, above toast; clear of Gmail undo) expands to **Reply** / **Reply-All**; **Diagnose** when debug is on. Auto-rewrite after Reply when `X-CFEG-*` present.
+Popup: enable/debug toggles. On Gmail: compact **CFEG** FAB (bottom-right, inset clear of Gmail side-panel/add-ons toggle + left undo; toast above) expands to **Reply** / **Reply-All**; **Diagnose** when debug is on. Auto-rewrite after Reply when `X-CFEG-*` present.
 
 ## Non-goals
 

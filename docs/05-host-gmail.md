@@ -19,7 +19,7 @@ Gmail does not expose arbitrary headers in the normal reading pane DOM.
 |----------|----------|-------|
 | A | **Show original equivalent** | **Implemented (Phase 2):** same-origin `GET` `view=om&ik=&permmsgid=` using visible `[data-message-id]` + `ik` scraped from page HTML/links; parse `<pre>` for `X-CFEG-*` |
 | B | **Gmail.js-style DOM/legacy globals** | Not used (fragile; page-world CSP) |
-| C | **Toolbar “CFEG Reply”** | **Implemented:** compact FAB **bottom-right** (clear of Gmail undo/snackbar); expand → Reply / Reply-All; **Diagnose** only when popup **debug** is on; force rewrite open compose if auto path missed |
+| C | **Toolbar “CFEG Reply”** | **Implemented:** compact FAB **bottom-right**, inset past Gmail **add-ons / side-panel** rail + toggle (and clear of left undo/snackbar); expand → Reply / Reply-All; **Diagnose** only when popup **debug** is on; force rewrite open compose if auto path missed |
 
 ### KI-G1 ADR (locked default)
 

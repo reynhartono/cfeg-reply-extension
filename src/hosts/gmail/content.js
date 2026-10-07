@@ -55,10 +55,14 @@ function setBadge(state) {
   document.documentElement.dataset.cfegReplyPhase = PHASE;
 }
 
-/** Bottom-right chrome: clear of Gmail's bottom-left undo/snackbar lane. */
+/** Bottom chrome: clear of Gmail undo (left) + right add-ons rail / side-panel toggle. */
 const UI = Object.freeze({
   edge: 24,
   gap: 12,
+  /** Typical collapsed Gmail add-ons rail width when measurement fails open. */
+  rightRailFallback: 56,
+  /** Cap so a full-width drawer cannot shove the FAB off-screen. */
+  rightInsetMax: 120,
   zBar: 999998,
   zToast: 999999,
   collapseMs: 8000,
@@ -68,12 +72,98 @@ const UI = Object.freeze({
 let toolbarExpanded = false;
 /** @type {ReturnType<typeof setTimeout> | null} */
 let toolbarCollapseTimer = null;
+/** @type {ReturnType<typeof setTimeout> | null} */
+let layoutSyncTimer = null;
+/** @type {ResizeObserver | null} */
+let layoutRo = null;
+/** @type {{ right: number, bottom: number }} */
+let safeInset = { right: UI.edge + UI.rightRailFallback + UI.gap, bottom: UI.edge };
+
+/**
+ * Measure Gmail right-rail / side-panel chrome so FAB does not cover the toggle.
+ * @returns {{ right: number, bottom: number }}
+ */
+function measureSafeInset() {
+  const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+  const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+  let right = UI.edge;
+  let bottom = UI.edge;
+
+  /** @param {DOMRectReadOnly} r */
+  const claimRight = (r) => {
+    if (!(r.width > 4 && r.height > 4)) return;
+    // Element hugs the right edge of the viewport
+    if (r.right < vw - 6 || r.left < vw * 0.55) return;
+    const inset = Math.ceil(vw - r.left) + UI.gap;
+    if (inset > right) right = inset;
+  };
+
+  /** @param {DOMRectReadOnly} r */
+  const claimBottomRight = (r) => {
+    if (!(r.width > 4 && r.height > 4)) return;
+    if (r.right < vw - 6 || r.left < vw * 0.55) return;
+    if (r.bottom < vh - 8 || r.top < vh * 0.45) return;
+    const insetB = Math.ceil(vh - r.top) + UI.gap;
+    // Only bump bottom when the control is a small toggle strip, not a tall panel
+    if (r.height <= 120 && insetB > bottom) bottom = insetB;
+  };
+
+  // Classic Gmail add-ons / side panel rail
+  for (const el of document.querySelectorAll(".bAw, .brC-aT5-aOt-Jw")) {
+    if (!(el instanceof HTMLElement)) continue;
+    const st = getComputedStyle(el);
+    if (st.display === "none" || st.visibility === "hidden" || Number(st.opacity) === 0) {
+      continue;
+    }
+    const r = el.getBoundingClientRect();
+    claimRight(r);
+  }
+
+  // Side panel show/hide control + other bottom-right Gmail chrome
+  for (const el of document.querySelectorAll(
+    [
+      '[aria-label*="side panel" i]',
+      '[aria-label*="Side panel" i]',
+      '[data-tooltip*="side panel" i]',
+      '[data-tooltip*="Side panel" i]',
+      'button[aria-label*="Calendar" i]',
+      'div[role="button"][aria-label*="Calendar" i]',
+    ].join(","),
+  )) {
+    if (!(el instanceof HTMLElement)) continue;
+    if (el.closest("#cfeg-reply-toolbar, #cfeg-reply-toast")) continue;
+    const r = el.getBoundingClientRect();
+    claimRight(r);
+    claimBottomRight(r);
+  }
+
+  // Fallback: collapsed rail ~56px still present but selector missed
+  if (right <= UI.edge) {
+    right = UI.edge + UI.rightRailFallback + UI.gap;
+  }
+
+  right = Math.min(Math.max(right, UI.edge), UI.rightInsetMax);
+  bottom = Math.min(Math.max(bottom, UI.edge), 160);
+  return { right, bottom };
+}
+
+function toolbarBottomPx() {
+  return safeInset.bottom;
+}
+
+function toolbarRightPx() {
+  return safeInset.right;
+}
 
 /** Toast sits above the toolbar so actions stay clickable. */
 function toastBottomPx() {
   const bar = document.getElementById("cfeg-reply-toolbar");
   const h = bar?.getBoundingClientRect().height || (toolbarExpanded ? 44 : 40);
-  return UI.edge + h + UI.gap;
+  return toolbarBottomPx() + h + UI.gap;
+}
+
+function toastRightPx() {
+  return toolbarRightPx();
 }
 
 /**
@@ -89,7 +179,7 @@ function showToast(text, level = "info") {
   }
   const bg =
     level === "ok" ? "#0d652d" : level === "err" ? "#8f1d14" : "#1a376a";
-  el.style.cssText = `position:fixed;z-index:${UI.zToast};bottom:${toastBottomPx()}px;right:${UI.edge}px;background:${bg};color:#fff;padding:10px 14px;border-radius:8px;font:13px system-ui,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.3);max-width:min(90vw,420px);opacity:1`;
+  el.style.cssText = `position:fixed;z-index:${UI.zToast};bottom:${toastBottomPx()}px;right:${toastRightPx()}px;background:${bg};color:#fff;padding:10px 14px;border-radius:8px;font:13px system-ui,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.3);max-width:min(90vw,420px);opacity:1`;
   el.textContent = text;
   clearTimeout(el._cfegT);
   el._cfegT = setTimeout(() => {
@@ -446,7 +536,11 @@ function syncToolbar() {
   const bar = document.getElementById("cfeg-reply-toolbar");
   if (!bar) return;
 
-  bar.style.cssText = `position:fixed;z-index:${UI.zBar};bottom:${UI.edge}px;right:${UI.edge}px;left:auto;display:flex;gap:6px;align-items:center;font:12px system-ui,sans-serif;flex-wrap:wrap;max-width:min(90vw,420px);opacity:${settings.enabled ? "1" : "0.55"}`;
+  safeInset = measureSafeInset();
+  const bottom = toolbarBottomPx();
+  const right = toolbarRightPx();
+
+  bar.style.cssText = `position:fixed;z-index:${UI.zBar};bottom:${bottom}px;right:${right}px;left:auto;display:flex;gap:6px;align-items:center;font:12px system-ui,sans-serif;flex-wrap:wrap;max-width:min(90vw,420px);opacity:${settings.enabled ? "1" : "0.55"}`;
 
   const toggle = document.getElementById("cfeg-reply-toggle");
   const actions = document.getElementById("cfeg-reply-actions");
@@ -477,8 +571,48 @@ function syncToolbar() {
   const toast = document.getElementById("cfeg-reply-toast");
   if (toast && toast.style.opacity !== "0") {
     toast.style.bottom = `${toastBottomPx()}px`;
-    toast.style.right = `${UI.edge}px`;
+    toast.style.right = `${toastRightPx()}px`;
   }
+}
+
+function scheduleLayoutSync() {
+  if (layoutSyncTimer) clearTimeout(layoutSyncTimer);
+  layoutSyncTimer = setTimeout(() => {
+    layoutSyncTimer = null;
+    syncToolbar();
+  }, 120);
+}
+
+function bindLayoutObservers() {
+  window.addEventListener("resize", scheduleLayoutSync, { passive: true });
+  // After Gmail UI clicks (side-panel toggle, etc.) remeasure once
+  document.addEventListener(
+    "click",
+    () => {
+      scheduleLayoutSync();
+    },
+    true,
+  );
+  if (typeof ResizeObserver === "function") {
+    layoutRo = new ResizeObserver(() => scheduleLayoutSync());
+    layoutRo.observe(document.documentElement);
+    const attachRail = () => {
+      const rail = document.querySelector(".bAw, .brC-aT5-aOt-Jw");
+      if (rail && layoutRo) layoutRo.observe(rail);
+    };
+    attachRail();
+    // Rail may mount after content script
+    setTimeout(attachRail, 1500);
+    setTimeout(attachRail, 4000);
+  }
+  // Light poll: Gmail can restyle without resize/click
+  setInterval(() => {
+    if (!document.getElementById("cfeg-reply-toolbar")) return;
+    const next = measureSafeInset();
+    if (next.right !== safeInset.right || next.bottom !== safeInset.bottom) {
+      syncToolbar();
+    }
+  }, 2000);
 }
 
 function bindSettingsListener() {
@@ -528,6 +662,7 @@ async function init() {
   setBadge(settings.enabled ? "ready" : "disabled");
   ensureToolbar();
   bindSettingsListener();
+  bindLayoutObservers();
 
   document.addEventListener("click", onClickCapture, true);
   document.addEventListener("keydown", onKeydown, true);
